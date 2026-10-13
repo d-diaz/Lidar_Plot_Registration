@@ -1,17 +1,17 @@
 name: docker-build
 
 on:
-  push:
+  pull_request:
     branches: ["main"]
     paths:
       - "pixi.toml"
       - "pixi.lock*"
       - "Dockerfile"
-  pull_request:
-    paths:
-      - "pixi.toml"
-      - "pixi.lock*"
-      - "Dockerfile"
+      - "pyproject.toml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   docker-build:
@@ -29,9 +29,5 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          build-args: |
-            USER_UID=1000
-            USER_GID=1000
-            USER_NAME=runner
           cache-from: type=gha
           cache-to: type=gha,mode=max

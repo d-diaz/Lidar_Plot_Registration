@@ -1,19 +1,18 @@
-FROM ghcr.io/prefix-dev/pixi:latest as base
+FROM ghcr.io/prefix-dev/pixi:latest
 
-ARG USER_NAME=morelia
-ARG USER_UID=1000
-ARG USER_GID=1000
-
-# free existing UID/GID if they are occupied
-RUN (id -u ${USER_UID} >/dev/null 2>&1 && userdel -r $(id -nu ${USER_UID}) || true) && \
-    (getent group ${USER_GID} >/dev/null 2>&1 && groupdel $(getent group ${USER_GID} | cut -d: -f1) || true) && \
-    groupadd -g ${USER_GID} ${USER_NAME} && \
-    useradd -m -u ${USER_UID} -g ${USER_GID} ${USER_NAME}
+# The base image ships an `ubuntu` user at UID/GID 1000; free them for forest3d-dev.
+# Dev Containers remaps 1000 to the host UID at startup if they differ.
+RUN (id -u 1000 >/dev/null 2>&1 && userdel -r $(id -nu 1000) || true) && \
+    (getent group 1000 >/dev/null 2>&1 && groupdel $(getent group 1000 | cut -d: -f1) || true) && \
+    groupadd -g 1000 forest3d-dev && \
+    useradd -m -u 1000 -g 1000 forest3d-dev
 
 RUN mkdir -p /workspace/forest3d && \
-    chown -R "${USER_UID}:${USER_GID}" /workspace
+    chown -R forest3d-dev:forest3d-dev /workspace
 
-USER ${USER_NAME}
+USER forest3d-dev
 WORKDIR /workspace/forest3d
-COPY --chown=${USER_UID}:${USER_GID} pixi.toml pixi.lock ./
+COPY --chown=forest3d-dev:forest3d-dev pixi.toml pixi.lock pyproject.toml README.md LICENSE ./
+# The editable forest3d install needs the package source to build.
+COPY --chown=forest3d-dev:forest3d-dev forest3d ./forest3d
 RUN pixi install --frozen

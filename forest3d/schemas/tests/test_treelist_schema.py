@@ -1,7 +1,7 @@
 import geopandas as gpd
 import pandas as pd
 import pytest
-from pandera.errors import SchemaError
+from pandera.errors import SchemaError, SchemaErrors
 
 from forest3d.schemas.treelist import TreeListDataFrameModel, TreeListGeoDataFrameModel
 
@@ -51,7 +51,7 @@ def test_names_ok_but_not_datatype():
     TreeListDataFrameModel(test_df)  # doesn't raise Schema Error
 
     test_df["stem_x"] = ["a", "b", "c"]
-    with pytest.raises(SchemaError):
+    with pytest.raises((SchemaError, SchemaErrors)):
         TreeListDataFrameModel(test_df)
 
 

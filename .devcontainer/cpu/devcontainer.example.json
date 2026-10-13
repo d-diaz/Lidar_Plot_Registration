@@ -1,15 +1,7 @@
 {
   "name": "forest3d (CPU)",
   "build": {
-    "dockerfile": "../../Dockerfile",
-    "args": {
-      "USER_UID": 1000,
-      "USER_GID": 1000,
-      "USER_NAME": "${localEnv:USER}"
-    }
-  },
-  "remoteEnv": {
-    "PYTHONPATH": "/workspace/forest3d"
+    "dockerfile": "../../Dockerfile"
   },
   "features": {
     "ghcr.io/devcontainers/features/common-utils": {
@@ -44,10 +36,7 @@
           "pyproject.toml"
         ],
         "notebook.formatOnSave.enabled": true,
-        "python.analysis.extraPaths": [
-          "/workspace/forest3d"
-        ],
-        "python.defaultInterpreterPath": "/workspace/forest3d/.pixi/envs/dev/bin/python3.12",
+        "python.defaultInterpreterPath": "/workspace/forest3d/.pixi/envs/dev/bin/python",
         "python.linting.mypyEnabled": true,
         "python.linting.enabled": true,
         "[python]": {
@@ -56,9 +45,6 @@
           "editor.codeActionsOnSave": {
             "source.fixAll": "explicit",
             "source.organizeImports": "explicit"
-          },
-          "terminal.integrated.env.linux": {
-            "PYTHONPATH": "/workspace/forest3d"
           }
         }
       }
