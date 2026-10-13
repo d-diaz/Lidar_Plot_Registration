@@ -2,7 +2,6 @@ name: docker-build
 
 on:
   pull_request:
-    branches: ["main"]
     paths:
       - "pixi.toml"
       - "pixi.lock*"
