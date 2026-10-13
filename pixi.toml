@@ -8,26 +8,17 @@ dev = ["dev"]
 cuda = ["cuda"]  # linux-only in practice
 dev-cuda = ["dev", "cuda"]
 
+# Runtime dependencies are declared once, in pyproject.toml, and installed through
+# the editable forest3d entry below. List here only what must come from conda.
 [dependencies]
 python = ">=3.11,<3.14"
-geopandas = "*"
-ipywidgets = "*"
 jupyter = "*"
-k3d = "*"
-matplotlib = "*"
-numpy = "*"
-pandas = "*"
-pandera = "*"
-pdal = "*"
-pydantic = "*"
-python-pdal = "*"
-rasterio = "*"
-seaborn = "*"
+pdal = "*"         # PDAL C++ library; no PyPI wheel
+python-pdal = "*"  # satisfies the `pdal` requirement of the lidar extra
 
 [pypi-dependencies]
-jax = { extras = ["cpu"] }
-laspy = { extras = ["lazrs"] }
-numpyro = "*"
+forest3d = { path = ".", editable = true, extras = ["lidar"] }
+jax = { extras = ["cpu"] }  # selects the CPU build; feature.cuda selects CUDA
 
 [feature.cuda]
 platforms = ["linux-64"]
@@ -49,11 +40,11 @@ pytest-benchmark = "*"
 ruff = "*"
 
 [tasks]
-ruff-check = "ruff check ."
-ruff-format-check = "ruff format --check ."
+ruff-check = { cmd = "ruff check .", default-environment = "dev" }
+ruff-format-check = { cmd = "ruff format --check .", default-environment = "dev" }
 lint = { depends-on = ["ruff-format-check", "ruff-check"] }
-typecheck = "mypy"
-test = "pytest"
-notebooks = "pytest --nbval-lax --nbval-current-env notebooks"
-bench = "pytest benchmarks --benchmark-only"
+typecheck = { cmd = "mypy", default-environment = "dev" }
+test = { cmd = "pytest", default-environment = "dev" }
+notebooks = { cmd = "pytest --nbval-lax --nbval-current-env notebooks", default-environment = "dev" }
+bench = { cmd = "pytest benchmarks --benchmark-only", default-environment = "dev" }
 ci = { depends-on = ["lint", "typecheck", "test", "notebooks"] }

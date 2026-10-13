@@ -5,6 +5,35 @@ description = "Methods for generating 3D models of forest inventory plots and co
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 authors = [{ name = "David Diaz" }]
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+dependencies = [
+  "geopandas",
+  "ipywidgets",
+  "jax>=0.4.36",
+  "k3d",
+  "numpy",
+  "numpyro",
+  "pandas",
+  "pandera>=0.24",
+  "pydantic>=2",
+  "pyproj",
+  "rasterio",
+  "scipy",
+  "seaborn",
+  "shapely",
+]
+
+[project.optional-dependencies]
+# PDAL's Python bindings need the PDAL C++ library; install it via conda/pixi.
+lidar = ["laspy[lazrs]", "pdal"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = ["forest3d", "README.md", "LICENSE"]
 
 [tool.ruff]
 target-version = "py311"

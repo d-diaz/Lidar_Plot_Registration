@@ -20,3 +20,7 @@ __pycache__
 *checkpoint.ipynb
 
 
+
+# Local devcontainer configs; copy from devcontainer.example.json and customize
+.devcontainer/*/devcontainer.json
+.devcontainer/*/devcontainer-lock.json
