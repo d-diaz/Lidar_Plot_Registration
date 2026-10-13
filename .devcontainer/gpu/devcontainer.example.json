@@ -23,11 +23,11 @@
         "ms-azuretools.vscode-docker",
         "ms-python.mypy-type-checker",
         "ms-python.python",
+        "ms-python.vscode-python-envs",
         "ms-toolsai.jupyter-keymap",
         "ms-toolsai.jupyter-renderers",
         "ms-toolsai.jupyter",
-        "prefix-dev.pixi-vscode",
-        "specstory.specstory-vscode",
+        "renan-r-santos.pixi-code",
         "vscode-icons-team.vscode-icons"
       ],
       "settings": {
