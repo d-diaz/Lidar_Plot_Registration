@@ -1,5 +1,7 @@
 import math
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from jax import jit
@@ -301,3 +303,80 @@ def test_make_analytic_dsm_close_to_pointcloud_rasterized(forest_params):
         float(dsm_an[mask_an].max()),
         atol=1e-3,
     )
+
+
+@pytest.mark.parametrize("dsm_pixel_location", list(DsmPixelLocation))
+@pytest.mark.parametrize(
+    ("stem_xy", "check_finite_difference"),
+    [
+        pytest.param([[10.1, 10.2], [3.3, 3.4]], True, id="off-pixel-center"),
+        # An apex on a pixel center puts a kink in the canopy surface, where the
+        # derivative is undefined: finite differences average the slopes on either
+        # side, while the analytic gradient takes a fixed value set by the
+        # zero-radius guard. The two diverge by construction, so we skip comparing them.
+        pytest.param([[10.25, 10.25], [3.25, 3.25]], False, id="on-pixel-center"),
+    ],
+)
+def test_make_analytic_dsm_stem_position_gradients_are_finite(
+    stem_xy, check_finite_difference, dsm_pixel_location
+):
+    # Coregistration slides trees toward the lidar canopy by differentiating the
+    # synthetic DSM with respect to stem positions. This test checks that:
+    # - the gradients are finite (no NaN or inf), including for apexes exactly on
+    #   pixel centers, which hit the zero-radius and axis-aligned-ray cases;
+    # - the jit and non-jit gradients match;
+    # - off pixel centers, the gradient matches a finite-difference estimate (nudge
+    #   the stem each way and measure the change), so it is correct, not just finite.
+    cs = CoordinateSystem.from_bounds(
+        xmin=0.0,
+        ymin=0.0,
+        zmin=0.0,
+        xmax=20.0,
+        ymax=20.0,
+        zmax=40.0,
+        dx=0.5,
+        dy=0.5,
+        dz=0.5,
+    )
+    fill = -1e9
+    # Stand-in scalar for the coregistration energy: a fixed per-pixel weighting of
+    # canopy heights, so finite differences check each pixel's gradient, not just
+    # their sum.
+    weights = jax.random.uniform(
+        jax.random.key(0), (cs.ny, cs.nx), minval=0.5, maxval=1.5
+    )
+
+    def weighted_canopy_height(xy):
+        params = CrownHullParams(
+            stem_base=jnp.concatenate([xy, jnp.zeros((2, 1))], axis=1),
+            top_height=jnp.array([20.0, 6.0]),
+            crown_ratio=jnp.full(2, 0.6),
+            lean_direction=jnp.zeros(2),
+            lean_severity=jnp.zeros(2),
+            crown_radii=jnp.array([[3.0] * 4, [1.0] * 4]),
+            crown_edge_heights=jnp.full((2, 4), 0.3),
+            crown_shapes=jnp.full((2, 2, 4), 2.0),
+        )
+        dsm = make_analytic_dsm(
+            params,
+            cs=cs,
+            fill_value=fill,
+            max_crown_radius=3.0,
+            dsm_pixel_location=dsm_pixel_location,
+        )
+        valid = dsm > fill / 2
+        return jnp.sum(weights * jnp.where(valid, dsm, 0.0))
+
+    xy = jnp.asarray(stem_xy, dtype=jnp.float32)
+    grad_fn = jax.grad(weighted_canopy_height)
+    grad = np.asarray(jit(grad_fn)(xy))
+    assert np.all(np.isfinite(grad))
+    np.testing.assert_allclose(grad, np.asarray(grad_fn(xy)), rtol=1e-5, atol=1e-5)
+
+    if check_finite_difference:
+        eps = 1e-3
+        step = jnp.zeros_like(xy).at[0, 0].set(eps)
+        fd = (weighted_canopy_height(xy + step) - weighted_canopy_height(xy - step)) / (
+            2 * eps
+        )
+        np.testing.assert_allclose(grad[0, 0], float(fd), rtol=0.02)
