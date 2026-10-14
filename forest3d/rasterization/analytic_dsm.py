@@ -266,26 +266,24 @@ def _query_xy_ray_entry(
     ray_dx = win.pixel_center_x - apex_x
     ray_dy = win.pixel_center_y - apex_y
 
-    t_x0 = (pixel_x_min - apex_x) / ray_dx
-    t_x1 = (pixel_x_max - apex_x) / ray_dx
-    t_y0 = (pixel_y_min - apex_y) / ray_dy
-    t_y1 = (pixel_y_max - apex_y) / ray_dy
+    # Double-where: divide by a safe denominator so axis-aligned rays do not send
+    # inf/NaN into the gradient through the masked-out branch.
+    ok_x = ray_dx != 0
+    ok_y = ray_dy != 0
+    ray_dx_safe = jnp.where(ok_x, ray_dx, 1.0)
+    ray_dy_safe = jnp.where(ok_y, ray_dy, 1.0)
 
-    tmin_x = jnp.minimum(t_x0, t_x1)
-    tmax_x = jnp.maximum(t_x0, t_x1)
-    tmin_y = jnp.minimum(t_y0, t_y1)
-    tmax_y = jnp.maximum(t_y0, t_y1)
+    t_x0 = (pixel_x_min - apex_x) / ray_dx_safe
+    t_x1 = (pixel_x_max - apex_x) / ray_dx_safe
+    t_y0 = (pixel_y_min - apex_y) / ray_dy_safe
+    t_y1 = (pixel_y_max - apex_y) / ray_dy_safe
 
     t_neg_inf = jnp.asarray(-jnp.inf, dtype=dtype)
-    t_pos_inf = jnp.asarray(jnp.inf, dtype=dtype)
-    tmin_x = jnp.where(ray_dx == 0, t_neg_inf, tmin_x)
-    tmax_x = jnp.where(ray_dx == 0, t_pos_inf, tmax_x)
-    tmin_y = jnp.where(ray_dy == 0, t_neg_inf, tmin_y)
-    tmax_y = jnp.where(ray_dy == 0, t_pos_inf, tmax_y)
+    tmin_x = jnp.where(ok_x, jnp.minimum(t_x0, t_x1), t_neg_inf)
+    tmin_y = jnp.where(ok_y, jnp.minimum(t_y0, t_y1), t_neg_inf)
 
-    t_entry = jnp.maximum(tmin_x, tmin_y)
-    t_entry = jnp.clip(t_entry, 0.0, 1.0)
-    t_entry = jnp.where((ray_dx == 0) & (ray_dy == 0), 0.0, t_entry)
+    # When both rays are degenerate, max(-inf, -inf) clips to 0 (query at the apex).
+    t_entry = jnp.clip(jnp.maximum(tmin_x, tmin_y), 0.0, 1.0)
 
     query_x = apex_x + t_entry * ray_dx
     query_y = apex_y + t_entry * ray_dy

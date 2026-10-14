@@ -55,8 +55,12 @@ def local_polar_from_pose_and_apex(
     query_y_local = query_y - pose_ty
     dx_local = query_x_local - apex_x_local
     dy_local = query_y_local - apex_y_local
-    r = jnp.hypot(dy_local, dx_local)
-    theta = jnp.arctan2(dy_local, dx_local).astype(dtype)
+    # Double-where: hypot/arctan2 have 0/0 gradients at the apex, so evaluate them at
+    # a safe point there (dy_local is already 0 whenever `ok` is False).
+    ok = (dx_local != 0) | (dy_local != 0)
+    dx_safe = jnp.where(ok, dx_local, 1.0)
+    r = jnp.where(ok, jnp.hypot(dy_local, dx_safe), 0.0)
+    theta = jnp.where(ok, jnp.arctan2(dy_local, dx_safe), 0.0).astype(dtype)
     return r, theta
 
 
@@ -187,9 +191,19 @@ def upper_surface_z_local(
     crown_edge_radius_safe = jnp.where(crown_edge_radius == 0, 1.0, crown_edge_radius)
     top_shape_safe = jnp.where(top_shape == 0, 1.0, top_shape)
 
-    r_frac = (r / crown_edge_radius_safe) ** top_shape_safe
-    inner = jnp.maximum(1.0 - r_frac, 0.0)
-    u = inner ** (1.0 / top_shape_safe)
+    # Double-where: x ** p has an infinite derivative at x = 0 when p < 1, and masking
+    # the value alone still sends 0 * inf = NaN into the gradient.
+    r_pos = r > 0
+    r_frac = jnp.where(
+        r_pos,
+        (jnp.where(r_pos, r, 1.0) / crown_edge_radius_safe) ** top_shape_safe,
+        0.0,
+    )
+    inner = 1.0 - r_frac
+    in_crown = inner > 0
+    u = jnp.where(
+        in_crown, jnp.where(in_crown, inner, 1.0) ** (1.0 / top_shape_safe), 0.0
+    )
 
     z_local = periph_z_local + (apex_z_local - periph_z_local) * u
     inside = (crown_edge_radius > 0) & (r <= crown_edge_radius)
